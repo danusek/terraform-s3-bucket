@@ -13,17 +13,6 @@ jobs:
     name: 'Terraform'
     runs-on: ubuntu-latest
 
-    services:
-      localstack:
-        image: localstack/localstack
-        ports:
-          - 4571:4566
-        options: >-
-          --health-cmd "curl -f http://localhost:4571/health || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 30
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -33,44 +22,11 @@ jobs:
         with:
           terraform_version: 1.0.0
 
-      - name: Wait for LocalStack to be ready
-        id: wait_for_localstack
-        run: |
-          echo "Waiting for LocalStack to be ready..."
-          for i in {1..30}; do
-            if curl -f http://localhost:4571/health; then
-              echo "LocalStack is ready"
-              break
-            else
-              echo "Waiting for LocalStack..."
-              sleep 10
-            fi
-          done
-
-      - name: Check LocalStack logs if not ready
-        if: ${{ steps.wait_for_localstack.outcome == 'failure' }}
-        run: |
-          echo "LocalStack did not start in time. Checking logs..."
-          docker logs $(docker ps -q --filter ancestor=localstack/localstack)
-
-      - name: Initialize Terraform
-        env:
-          AWS_ACCESS_KEY_ID: test
-          AWS_SECRET_ACCESS_KEY: test
+      - name: Terraform Init
         run: terraform init
 
-      - name: Validate Terraform
+      - name: Terraform Validate
         run: terraform validate
 
-      - name: Plan Terraform
-        env:
-          AWS_ACCESS_KEY_ID: test
-          AWS_SECRET_ACCESS_KEY: test
+      - name: Terraform Plan
         run: terraform plan
-
-      - name: Apply Terraform (Only on main branch)
-        if: github.ref == 'refs/heads/main'
-        env:
-          AWS_ACCESS_KEY_ID: test
-          AWS_SECRET_ACCESS_KEY: test
-        run: terraform apply -auto-approve
