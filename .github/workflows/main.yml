@@ -17,12 +17,12 @@ jobs:
       localstack:
         image: localstack/localstack
         ports:
-          - 4566:4566
+          - 4571:4566
         options: >-
-          --health-cmd "curl -f http://localhost:4566/health || exit 1"
+          --health-cmd "curl -f http://localhost:4571/health || exit 1"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 20
+          --health-retries 30
 
     steps:
       - name: Checkout code
@@ -34,18 +34,24 @@ jobs:
           terraform_version: 1.0.0
 
       - name: Wait for LocalStack to be ready
+        id: wait_for_localstack
         run: |
           echo "Waiting for LocalStack to be ready..."
           for i in {1..30}; do
-            if curl -f http://localhost:4566/health; then
+            if curl -f http://localhost:4571/health; then
               echo "LocalStack is ready"
               break
             else
               echo "Waiting for LocalStack..."
-              docker logs $(docker ps -q --filter ancestor=localstack/localstack)
               sleep 10
             fi
           done
+
+      - name: Check LocalStack logs if not ready
+        if: ${{ steps.wait_for_localstack.outcome == 'failure' }}
+        run: |
+          echo "LocalStack did not start in time. Checking logs..."
+          docker logs $(docker ps -q --filter ancestor=localstack/localstack)
 
       - name: Initialize Terraform
         env:
