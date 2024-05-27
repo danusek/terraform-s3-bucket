@@ -11,7 +11,7 @@ on:
 jobs:
   terraform:
     name: 'Terraform'
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     services:
       localstack:
@@ -22,7 +22,7 @@ jobs:
           --health-cmd "curl -f http://localhost:4566/health || exit 1"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 10
+          --health-retries 20
 
     steps:
       - name: Checkout code
@@ -33,22 +33,18 @@ jobs:
         with:
           terraform_version: 1.0.0
 
+      - name: Wait for LocalStack to be ready
+        run: |
+          echo "Waiting for LocalStack to be ready..."
+          for i in {1..30}; do
+            curl -f http://localhost:4566/health && break || sleep 10
+          done
+
       - name: Initialize Terraform
         env:
           AWS_ACCESS_KEY_ID: test
           AWS_SECRET_ACCESS_KEY: test
-        run: |
-          echo "Waiting for LocalStack to be ready..."
-          for i in {1..10}; do
-            if curl -f http://localhost:4566/health; then
-              echo "LocalStack is ready"
-              break
-            else
-              echo "Waiting for LocalStack..."
-              sleep 3
-            fi
-          done
-          terraform init
+        run: terraform init
 
       - name: Validate Terraform
         run: terraform validate
